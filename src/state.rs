@@ -16,7 +16,7 @@ pub struct AppState {
 pub struct Inner {
     pub config: Config,
     pub snapshot: RwLock<Arc<Snapshot>>,
-    pub geo: Option<Geo>,
+    pub geo: Geo,
     pub activity: Mutex<ActivityDb>,
     pub heatmap: RwLock<Option<Vec<u8>>>,
     pub bans: RwLock<Vec<String>>,
@@ -34,7 +34,7 @@ impl AppState {
     pub fn new(
         config: Config,
         snapshot: Snapshot,
-        geo: Option<Geo>,
+        geo: Geo,
         activity: ActivityDb,
         heatmap: Option<Vec<u8>>,
         bans: Vec<String>,

@@ -207,7 +207,7 @@ fn rule_i32(rules: &std::collections::HashMap<String, Vec<u8>>, key: &str) -> i3
     rule_str(rules, key).parse().unwrap_or(0)
 }
 
-pub fn build_server(raw: RawStatus, geo: String, banned: &[String]) -> Option<Server> {
+pub fn build_server(raw: RawStatus, banned: &[String]) -> Option<Server> {
     let ip = raw.address.ip().to_string();
     if banned.iter().any(|b| b == &ip) {
         return None;
@@ -288,7 +288,7 @@ pub fn build_server(raw: RawStatus, geo: String, banned: &[String]) -> Option<Se
                 .map(|v| v.as_slice())
                 .unwrap_or(b""),
         ),
-        geo,
+        geo: String::new(),
         version: parsed.version,
         gamedir: rule_str(&raw.rules, "modname"),
         mode,

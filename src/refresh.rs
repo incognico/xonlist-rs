@@ -4,7 +4,6 @@ use std::time::{Duration, Instant};
 use tracing::{info, warn};
 
 use crate::config::Config;
-use crate::geo::lookup;
 use crate::model::{
     assemble_snapshot, build_server, file_mtime_epoch, now_epoch, parse_banned, Snapshot,
 };
@@ -70,11 +69,9 @@ pub async fn refresh_servers(state: &AppState) -> anyhow::Result<()> {
     let raw = query_servers(masters, state.config.retries, state.config.query_timeout_ms).await;
     info!(online = raw.len(), "game servers answered");
 
-    let geo = state.geo.as_ref();
     let mut servers = Vec::new();
     for r in raw {
-        let geo_code = lookup(geo, r.address.ip());
-        if let Some(s) = build_server(r, geo_code, &bans) {
+        if let Some(s) = build_server(r, &bans) {
             servers.push(s);
         }
     }

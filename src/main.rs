@@ -43,7 +43,7 @@ async fn main() -> anyhow::Result<()> {
         .redirect(reqwest::redirect::Policy::limited(10))
         .build()?;
 
-    let geo = Geo::open(&config.geodb);
+    let geo = Geo::open(config.geodb.clone());
     let activity = ActivityDb::open(&config.activity_path())?;
     let snapshot = load_snapshot(&config).unwrap_or_else(Snapshot::empty);
     let heatmap = load_heatmap(&config);

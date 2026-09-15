@@ -10,6 +10,7 @@ use rust_embed::RustEmbed;
 use serde::Deserialize;
 use tower_http::trace::TraceLayer;
 
+use crate::model::Snapshot;
 use crate::state::AppState;
 use crate::view::{
     views_from_snapshot, EmbedTemplate, IndexTemplate, RowsTemplate, ServerView, SiteCtx,
@@ -43,8 +44,14 @@ fn site_from(state: &AppState, q: &CommonQuery) -> SiteCtx {
     SiteCtx::from_config(&state.config, q.rjz.is_some())
 }
 
+fn live_snapshot(state: &AppState) -> Snapshot {
+    let mut snap = state.snapshot.read().with_lastupdate_now();
+    state.geo.apply(&mut snap);
+    snap
+}
+
 async fn index(State(state): State<AppState>, Query(q): Query<CommonQuery>) -> Response {
-    let snap = state.snapshot.read().with_lastupdate_now();
+    let snap = live_snapshot(&state);
     let site = site_from(&state, &q);
     let servers = views_from_snapshot(&snap);
     let tmpl = IndexTemplate {
@@ -65,7 +72,7 @@ async fn server_page(
     Path(server): Path<String>,
     Query(q): Query<CommonQuery>,
 ) -> Response {
-    let snap = state.snapshot.read().with_lastupdate_now();
+    let snap = live_snapshot(&state);
     let site = site_from(&state, &q);
     let servers: Vec<ServerView> = snap
         .server
@@ -83,7 +90,7 @@ async fn server_page(
 }
 
 async fn servers_page(State(state): State<AppState>, Query(q): Query<CommonQuery>) -> Response {
-    let snap = state.snapshot.read().with_lastupdate_now();
+    let snap = live_snapshot(&state);
     let site = site_from(&state, &q);
     let want: HashSet<&str> = q.s.iter().map(|s| s.as_str()).collect();
     let servers: Vec<ServerView> = snap
@@ -101,7 +108,7 @@ async fn servers_page(State(state): State<AppState>, Query(q): Query<CommonQuery
 }
 
 async fn json_endpoint(State(state): State<AppState>, Query(q): Query<CommonQuery>) -> Response {
-    let snap = state.snapshot.read().with_lastupdate_now();
+    let snap = live_snapshot(&state);
     let body = if q.pretty.is_some() {
         serde_json::to_vec_pretty(&snap).unwrap_or_else(|_| b"{}".to_vec())
     } else {
