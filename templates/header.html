@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+   <meta http-equiv="content-type" content="text/html; charset=utf-8">
+   <meta name="description" content="{{ site.desc }}">
+   <meta name="viewport" content="width=device-width, initial-scale=0.5">
+   <meta name="theme-color" content="#222">
+   <meta name="application-name" content="XonList">
+   <meta name="msapplication-tooltip" content="Xonotic Server List">
+   <meta name="msapplication-starturl" content="{{ site.asset_base }}/">
+   <link rel="manifest" href="{{ site.asset_base }}/manifest.json">
+   {% if !site.rjz %}
+   <link rel="modulepreload" href="{{ site.asset_base }}/js/dark-mode-toggle.min.js">
+   {% endif %}
+   <link rel="stylesheet" href="{{ site.asset_base }}/css/normalize.css">
+   <link rel="stylesheet" href="{{ site.asset_base }}/css/barebones.min.css">
+   <link rel="stylesheet" href="{{ site.asset_base }}/css/common.css">
+   {% if !site.rjz %}
+   <link rel="stylesheet" href="{{ site.asset_base }}/css/light.css" media="(prefers-color-scheme: light), (prefers-color-scheme: no-preference)">
+   <link rel="stylesheet" href="{{ site.asset_base }}/css/dark.css" media="(prefers-color-scheme: dark)">
+   {% else %}
+   <link rel="stylesheet" href="https://rocketjump.zone/xonlist.css">
+   <link rel="stylesheet" href="https://rocketjump.zone/font-awesome.css">
+   {% endif %}
+   <link rel="stylesheet" href="{{ site.asset_base }}/css/flags.css">
+   <link rel="icon" href="{{ site.asset_base }}/images/xon96.png" type="image/png">
+   <link rel="apple-touch-icon" href="{{ site.asset_base }}/images/xon180.png">
+   <title>{{ site.title }}</title>
+</head>
+<body>
+<div class="grid-container full">

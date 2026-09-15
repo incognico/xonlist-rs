@@ -1,0 +1,204 @@
+@font-face {
+  font-family: 'Xolonium';
+  src: url('../fonts/xolonium-regular.eot');
+  src: url('../fonts/xolonium-regular.eot?#iefix') format('embedded-opentype'),
+       url('../fonts/xolonium-regular.woff2') format('woff2'),
+       url('../fonts/xolonium-regular.woff') format('woff'),
+       url('../fonts/xolonium-regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+body {
+  font-family: Xolonium, sans-serif;
+  font-size: 1.4rem;
+  font-style: normal;
+  font-weight: normal;
+  line-height: 1.4rem;
+  text-rendering: optimizeLegibility !important;
+  overflow-y: scroll;
+  --grid-max-width: 1020px;
+}
+
+.grid-container.full {
+  padding: 1rem;
+  z-index: 100;
+}
+
+p {
+  margin-bottom: 1.3rem;
+}
+
+h4 {
+  margin-top: 2rem;
+  font-variant: small-caps;
+}
+
+::-webkit-scrollbar { width: 8px; height: 3px; }
+::-webkit-scrollbar-button { background-color: #666; }
+::-webkit-scrollbar-track { background-color: #646464; }
+::-webkit-scrollbar-thumb { height: 25px; background-color: #666; }
+::-webkit-scrollbar-corner { background-color: #646464; }
+::-webkit-resizer { background-color: #666; }
+
+table {
+  border-spacing: 0;
+}
+
+.hidden {
+  display: none;
+}
+
+.button-small {
+  padding: 0 3px;
+  min-width: 24px;
+}
+
+@media (max-width: 720px) {
+  .button-primary { padding: 0 6px; }
+}
+
+.center,
+tr.info th:nth-child(3),
+tr.info td:nth-child(3) {
+  text-align: center;
+}
+
+.size0 {
+  font-size: 1rem;
+  line-height: 1rem;
+}
+
+.size1,
+tbody.players tr td:nth-child(2),
+tr.info td:nth-child(4) {
+  font-size: 1.1rem;
+}
+
+b,
+th,
+tbody.details2 tr td:nth-child(2),
+tbody.players tr td:nth-child(3),
+tr.info:not(.empty) td:nth-child(2) {
+  font-weight: normal;
+  font-size: 1.5rem;
+}
+
+th {
+  font-variant: small-caps;
+}
+
+.team1red {
+  color: #E02130;
+  /* color: #F54C00; */
+}
+
+.team2blue {
+  color: #009AE4;
+  /* color: #33C3F0; */
+}
+
+.team3yellow {
+  color: #FF9600;
+  /* color: #FAB243; */
+}
+
+.team4pink {
+  color: #F44EA3;
+  /* color: #C71AFD; */
+}
+
+a {
+  text-decoration: none;
+}
+
+.hlink {
+  color: inherit;
+}
+
+input[type="search"]::-webkit-search-cancel-button {
+  -webkit-appearance: searchfield;
+}
+
+th:first-child,
+td:first-child {
+  padding-left: 4px;
+}
+
+th:last-child,
+td:last-child {
+  padding-right: 4px;
+}
+
+#erebus {
+  position: fixed;
+  right: -100px;
+  bottom: -40px;
+  opacity: 0.35;
+  filter: alpha(opacity=35);
+  z-index: 10;
+}
+
+#main {
+  table-layout: fixed;
+  height: auto;        /* or remove any height declaration */
+  min-height: unset;   /* if min-height is set elsewhere */
+}
+
+.col-flag { width: 4%; }
+.col-name { width: 42%; }
+.col-type { width: 12%; }
+.col-map { width: 18%; }
+.col-players { width: 7%; }
+.col-btn { width: 10%; }
+
+#main tbody tr.info {
+  height: auto;        /* ensure rows size to content */
+}
+
+.tempty {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Keep Details/connect buttons inside fixed table columns */
+#main th.col-btn,
+#main td:nth-child(6),
+#main td:nth-child(7) {
+  overflow: hidden;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+#main .button,
+#main .button-primary,
+#main .button-small,
+#main button {
+  box-sizing: border-box;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  min-height: 28px;
+  padding: 0 6px;
+  margin-bottom: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* Expanded detail rows: contain nested tables */
+#main tr.details > td {
+  overflow-x: auto;
+  max-width: 0; /* with table-layout:fixed + colspan, constrains width */
+}
+
+#main tr.details .grid-container.halves {
+  max-width: 100%;
+}
+
+#main tr.details table {
+  width: 100%;
+  table-layout: fixed;
+  margin-bottom: 0;
+}

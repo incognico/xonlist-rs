@@ -1,0 +1,22 @@
+{% include "header.html" %}
+     <table>
+        <thead>
+           <tr class="info">
+              <th>&#x1F30D;</th>
+              <th>Server Name</th>
+              <th>Type</th>
+              <th>Map</th>
+              <th>Players</th>
+              <th></th>
+           </tr>
+        </thead>
+        <tbody>
+{% include "rows.html" %}
+        </tbody>
+     </table>
+   {% if !has_server %}
+   <div><p>Server offline or not existing &#x1F61E;</p></div>
+   {% endif %}
+   <div><p class="size1">data from <a rel="noopener" href="{{ site.asset_base }}">{{ site.asset_base }}</a></p></div>
+   </div>
+{% include "footer.html" %}

@@ -1,0 +1,90 @@
+{% for i in servers %}
+      <tr data-id="{{ i.address }}" class="stripe{% if i.empty %} {% if !embed %}hidden {% endif %}empty{% endif %} info">
+         <td><span class="flag flag-{{ i.geo_lower }}" title="{{ i.geo }}"></span></td>
+         <td>{{ i.realname }}</td>
+         <td title="{{ i.modefull }}">{{ i.mode }}<br><span class="size0">{{ i.mode_tag }}{% if i.instagib_dot %}&nbsp;&odot;{% endif %}</span></td>
+         <td{% if i.map_title.is_some() %} title="{{ i.map_title.as_deref().unwrap_or("") }}"{% endif %}>{{ i.map_display }}</td>
+         <td>{% if i.numplayers > 0 %}<b>{{ i.numplayers }}</b>{% else %}{{ i.numplayers }}{% endif %}<span class="size1">/{{ i.maxplayers }}</span></td>
+         <td><button class="button button-small clipboard" data-clipboard-text="connect {{ i.address }};toggleconsole" title="Copy console connect command to clipboard (Use CTRL+V in the Xonotic console and hit return to connect)">&#x1f517;</button></td>
+         {% if !embed %}
+         <td><button class="button-primary" data-id="{{ i.address }}">Details</button></td>
+         {% endif %}
+      </tr>
+      <tr class="{% if !embed %}hidden stripe {% endif %}details" data-id="{{ i.address }}_details">
+         <td colspan="{% if embed %}6{% else %}7{% endif %}">
+            <div class="grid-container halves">
+               <table>
+                  <thead>
+                     <tr>
+                        <th>Server Details</th>
+                        <th></th>
+                     </tr>
+                  </thead>
+                  <tbody class="details2">
+                     <tr>
+                        <td>Address:</td>
+                        <td>{% if !site.rjz %}<a class="hlink" href="{{ site.asset_base }}/server/{{ i.address }}" title="Permanent link to this servers information">{% endif %}{{ i.address }}{% if !site.rjz %}</a>{% endif %}</td>
+                     </tr>
+                     <tr title="{{ i.gamedir }}">
+                        <td>Game Version:</td>
+                        <td>{{ i.version }}</td>
+                     </tr>
+                     <tr title="{{ i.d0id }}">
+                        <td>Encryption:</td>
+                        <td>{{ i.encryption }}</td>
+                     </tr>
+                     <tr>
+                        <td>{% if !site.rjz %}<a class="hlink" href="http://stats.xonotic.org/" rel="noopener">{% endif %}Player Statistics:{% if !site.rjz %}</a>{% endif %}</td>
+                        <td>{% if i.stats_supported %}Supported{% else %}Not Supported{% endif %}</td>
+                     </tr>
+                     {% if i.fullbright_forbidden %}
+                     <tr>
+                        <td>Fullbright:</td>
+                        <td>Forbidden</td>
+                     </tr>
+                     {% endif %}
+                     <tr>
+                        <td>Impure CVARs:</td>
+                        <td>{{ i.impure }}</td>
+                     </tr>
+                     <tr>
+                        <td>Free Slots:</td>
+                        <td>{{ i.slots }}</td>
+                     </tr>
+                     {% for t in i.team_scores %}
+                     <tr class="{{ t.class }}">
+                        <td>{{ t.label }}</td>
+                        <td>{{ t.value }}</td>
+                     </tr>
+                     {% endfor %}
+                  </tbody>
+               </table>
+               {% if i.has_player_table %}
+               <table>
+                  <thead>
+                     <tr>
+                        <th>Player Name</th>
+                        <th>Ping</th>
+                        <th>{{ i.score_header }}</th>
+                     </tr>
+                  </thead>
+                  <tbody class="players">
+                     {% for p in i.players %}
+                     <tr{% if let Some(cls) = p.team_class %} class="{{ cls }}"{% endif %}>
+                        <td{% if p.name_title.is_some() %} title="{{ p.name_title.as_deref().unwrap_or("") }}"{% endif %}>{{ p.name_display }}</td>
+                        <td>{% if p.ping_arrows %}&#9658;&#9658;&#9658;{% else if p.ping_bot %}bot{% else if let Some(n) = p.ping_num %}{{ n }}{% endif %}</td>
+                        <td>{% if let Some(st) = p.score_title %}<span title="{{ st }}">{{ p.score_display }}</span>{% else %}{{ p.score_display }}{% endif %}</td>
+                     </tr>
+                     {% endfor %}
+                  </tbody>
+               </table>
+               {% if i.player_query_error %}
+               <div><p><b>Error querying player information &#x1F61E;</b></p></div>
+               {% endif %}
+               {% else %}
+               <div><p><b>No Players &#x1F61E;</b></p></div>
+               {% endif %}
+            </div>
+         </td>
+      </tr>
+{% endfor %}
