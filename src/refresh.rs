@@ -67,12 +67,7 @@ pub async fn refresh_servers(state: &AppState) -> anyhow::Result<()> {
     let bans = state.bans.read().clone();
     let masters = query_all_masters(&state.config.masters).await;
     info!(count = masters.len(), "master servers returned");
-    let raw = query_servers(
-        masters,
-        state.config.retries,
-        state.config.query_timeout_ms,
-    )
-    .await;
+    let raw = query_servers(masters, state.config.retries, state.config.query_timeout_ms).await;
     info!(online = raw.len(), "game servers answered");
 
     let geo = state.geo.as_ref();
@@ -229,5 +224,3 @@ pub async fn scheduler(state: AppState) {
         }
     }
 }
-
-

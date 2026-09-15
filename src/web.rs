@@ -82,10 +82,7 @@ async fn server_page(
     render(tmpl)
 }
 
-async fn servers_page(
-    State(state): State<AppState>,
-    Query(q): Query<CommonQuery>,
-) -> Response {
+async fn servers_page(State(state): State<AppState>, Query(q): Query<CommonQuery>) -> Response {
     let snap = state.snapshot.read().with_lastupdate_now();
     let site = site_from(&state, &q);
     let want: HashSet<&str> = q.s.iter().map(|s| s.as_str()).collect();
@@ -103,10 +100,7 @@ async fn servers_page(
     render(tmpl)
 }
 
-async fn json_endpoint(
-    State(state): State<AppState>,
-    Query(q): Query<CommonQuery>,
-) -> Response {
+async fn json_endpoint(State(state): State<AppState>, Query(q): Query<CommonQuery>) -> Response {
     let snap = state.snapshot.read().with_lastupdate_now();
     let body = if q.pretty.is_some() {
         serde_json::to_vec_pretty(&snap).unwrap_or_else(|_| b"{}".to_vec())
@@ -114,7 +108,10 @@ async fn json_endpoint(
         serde_json::to_vec(&snap).unwrap_or_else(|_| b"{}".to_vec())
     };
     (
-        [(header::CONTENT_TYPE, HeaderValue::from_static("application/json"))],
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/json"),
+        )],
         body,
     )
         .into_response()
@@ -159,7 +156,10 @@ fn not_found() -> Response {
         .unwrap_or_else(|| b"404".to_vec());
     (
         StatusCode::NOT_FOUND,
-        [(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"))],
+        [(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/html; charset=utf-8"),
+        )],
         body,
     )
         .into_response()
@@ -175,12 +175,13 @@ fn render(tmpl: impl Template) -> Response {
                 .unwrap_or_else(|| b"500".to_vec());
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                [(header::CONTENT_TYPE, HeaderValue::from_static("text/html; charset=utf-8"))],
+                [(
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_static("text/html; charset=utf-8"),
+                )],
                 body,
             )
                 .into_response()
         }
     }
 }
-
-
