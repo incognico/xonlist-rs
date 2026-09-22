@@ -46,8 +46,27 @@ pub async fn query_all_masters(masters: &[String]) -> HashSet<SocketAddr> {
 }
 
 pub async fn query_master(hostport: &str) -> anyhow::Result<Vec<SocketAddr>> {
-    let addr = resolve_master(hostport).await?;
-    let sock = UdpSocket::bind("0.0.0.0:0").await?;
+    let addrs = resolve_master(hostport).await?;
+    let mut last_err = anyhow::anyhow!("no usable address for {hostport}");
+    for addr in addrs {
+        match query_master_one(addr).await {
+            Ok(servers) => return Ok(servers),
+            Err(e) => {
+                debug!(error = %e, %addr, hostport, "master attempt failed");
+                last_err = e;
+            }
+        }
+    }
+    Err(last_err)
+}
+
+async fn query_master_one(addr: SocketAddr) -> anyhow::Result<Vec<SocketAddr>> {
+    let bind = if addr.is_ipv4() {
+        "0.0.0.0:0"
+    } else {
+        "[::]:0"
+    };
+    let sock = UdpSocket::bind(bind).await?;
     sock.connect(addr).await?;
     sock.send(GETSERVERS).await?;
 
@@ -55,6 +74,7 @@ pub async fn query_master(hostport: &str) -> anyhow::Result<Vec<SocketAddr>> {
     let deadline = Duration::from_secs(3);
     let start = tokio::time::Instant::now();
     let mut buf = vec![0u8; 65535];
+    let mut got_packet = false;
     loop {
         let remaining = deadline.saturating_sub(start.elapsed());
         if remaining.is_zero() {
@@ -62,6 +82,7 @@ pub async fn query_master(hostport: &str) -> anyhow::Result<Vec<SocketAddr>> {
         }
         match timeout(remaining, sock.recv(&mut buf)).await {
             Ok(Ok(n)) => {
+                got_packet = true;
                 let (found, eot) = parse_getservers_response(&buf[..n]);
                 servers.extend(found);
                 if eot {
@@ -69,26 +90,33 @@ pub async fn query_master(hostport: &str) -> anyhow::Result<Vec<SocketAddr>> {
                 }
             }
             Ok(Err(e)) => {
-                debug!(error = %e, hostport, "master recv error");
+                debug!(error = %e, %addr, "master recv error");
                 break;
             }
             Err(_) => break,
         }
     }
+    if !got_packet {
+        anyhow::bail!("no response from {addr}");
+    }
     Ok(servers)
 }
 
-async fn resolve_master(hostport: &str) -> anyhow::Result<SocketAddr> {
+async fn resolve_master(hostport: &str) -> anyhow::Result<Vec<SocketAddr>> {
     let (host, port) = match hostport.rsplit_once(':') {
         Some((h, p)) if p.chars().all(|c| c.is_ascii_digit()) => {
             (h.to_string(), p.parse::<u16>().unwrap_or(MASTER_PORT))
         }
         _ => (hostport.to_string(), MASTER_PORT),
     };
-    let mut addrs = tokio::net::lookup_host((host.as_str(), port)).await?;
-    addrs
-        .next()
-        .ok_or_else(|| anyhow::anyhow!("no addresses for {hostport}"))
+    let mut addrs: Vec<SocketAddr> = tokio::net::lookup_host((host.as_str(), port))
+        .await?
+        .collect();
+    if addrs.is_empty() {
+        anyhow::bail!("no addresses for {hostport}");
+    }
+    addrs.sort_by_key(|addr| addr.is_ipv6());
+    Ok(addrs)
 }
 
 pub fn parse_getservers_response(buf: &[u8]) -> (Vec<SocketAddr>, bool) {
