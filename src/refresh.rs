@@ -146,8 +146,6 @@ pub fn next_delay(age: Option<Duration>, ttl: Duration) -> Duration {
 }
 
 pub async fn scheduler(state: AppState) {
-    crate::model::init_regex();
-
     {
         let bans = load_or_fetch_bans(&state).await;
         *state.bans.write() = bans;

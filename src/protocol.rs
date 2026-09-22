@@ -144,37 +144,103 @@ pub async fn query_servers(
     retries: u32,
     timeout_ms: u64,
 ) -> Vec<RawStatus> {
-    let attempt_to = Duration::from_millis(timeout_ms);
-    let futs = addrs.into_iter().map(|addr| async move {
-        for _ in 0..retries.max(1) {
-            match timeout(attempt_to, query_server_once(addr)).await {
-                Ok(Ok(Some(st))) => return Some(st),
-                Ok(Ok(None)) => continue,
-                Ok(Err(_)) => continue,
-                Err(_) => continue,
-            }
-        }
-        None
-    });
-    futures::future::join_all(futs)
-        .await
-        .into_iter()
-        .flatten()
-        .collect()
+    let addrs: Vec<SocketAddr> = addrs.into_iter().collect();
+    let v4: Vec<_> = addrs.iter().copied().filter(|a| a.is_ipv4()).collect();
+    let v6: Vec<_> = addrs.iter().copied().filter(|a| a.is_ipv6()).collect();
+    let (mut v4_status, v6_status) = tokio::join!(
+        query_family(v4, "0.0.0.0:0", retries, timeout_ms),
+        query_family(v6, "[::]:0", retries, timeout_ms),
+    );
+    v4_status.extend(v6_status);
+    v4_status
 }
 
-async fn query_server_once(addr: SocketAddr) -> std::io::Result<Option<RawStatus>> {
-    let bind: SocketAddr = if addr.is_ipv6() {
-        "[::]:0".parse().unwrap()
-    } else {
-        "0.0.0.0:0".parse().unwrap()
+/// One datagram socket for the whole family. Replies are read while the
+/// sends are in flight so the socket buffer does not fill up.
+async fn query_family(
+    addrs: Vec<SocketAddr>,
+    bind: &str,
+    retries: u32,
+    timeout_ms: u64,
+) -> Vec<RawStatus> {
+    if addrs.is_empty() {
+        return Vec::new();
+    }
+    let sock = match UdpSocket::bind(bind).await {
+        Ok(sock) => sock,
+        Err(e) => {
+            warn!(error = %e, bind, "udp bind failed");
+            return Vec::new();
+        }
     };
-    let sock = UdpSocket::bind(bind).await?;
-    sock.connect(addr).await?;
-    sock.send(GETSTATUS).await?;
+    let attempt = Duration::from_millis(timeout_ms);
+    let mut pending: HashSet<SocketAddr> = addrs.into_iter().collect();
+    let mut out = Vec::new();
     let mut buf = vec![0u8; 65535];
-    let n = sock.recv(&mut buf).await?;
-    Ok(parse_status_response(addr, &buf[..n]))
+
+    for _ in 0..retries.max(1) {
+        if pending.is_empty() {
+            break;
+        }
+        let batch: Vec<SocketAddr> = pending.iter().copied().collect();
+        for (i, addr) in batch.iter().enumerate() {
+            if let Err(e) = sock.send_to(GETSTATUS, *addr).await {
+                debug!(error = %e, %addr, "getstatus send failed");
+            }
+            if i % 32 == 31 {
+                drain_ready(&sock, &mut buf, &mut pending, &mut out);
+            }
+        }
+        let deadline = tokio::time::Instant::now() + attempt;
+        while !pending.is_empty() {
+            let left = deadline.saturating_duration_since(tokio::time::Instant::now());
+            if left.is_zero() {
+                break;
+            }
+            match timeout(left, sock.recv_from(&mut buf)).await {
+                Ok(Ok((n, src))) => accept_status(&buf[..n], src, &mut pending, &mut out),
+                Ok(Err(e)) => {
+                    debug!(error = %e, "udp recv failed");
+                    break;
+                }
+                Err(_) => break,
+            }
+        }
+    }
+    out
+}
+
+fn drain_ready(
+    sock: &UdpSocket,
+    buf: &mut [u8],
+    pending: &mut HashSet<SocketAddr>,
+    out: &mut Vec<RawStatus>,
+) {
+    loop {
+        match sock.try_recv_from(buf) {
+            Ok((n, src)) => accept_status(&buf[..n], src, pending, out),
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => break,
+            Err(e) => {
+                debug!(error = %e, "udp try_recv failed");
+                break;
+            }
+        }
+    }
+}
+
+fn accept_status(
+    packet: &[u8],
+    src: SocketAddr,
+    pending: &mut HashSet<SocketAddr>,
+    out: &mut Vec<RawStatus>,
+) {
+    if !pending.contains(&src) {
+        return;
+    }
+    if let Some(status) = parse_status_response(src, packet) {
+        pending.remove(&src);
+        out.push(status);
+    }
 }
 
 pub fn parse_status_response(address: SocketAddr, buf: &[u8]) -> Option<RawStatus> {

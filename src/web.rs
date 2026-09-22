@@ -6,19 +6,15 @@ use axum::http::{header, HeaderName, HeaderValue, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
-use rust_embed::RustEmbed;
 use serde::Deserialize;
 use tower_http::trace::TraceLayer;
 
+use crate::assets::Assets;
 use crate::model::Snapshot;
 use crate::state::AppState;
 use crate::view::{
     views_from_snapshot, EmbedTemplate, IndexTemplate, RowsTemplate, ServerView, SiteCtx,
 };
-
-#[derive(RustEmbed)]
-#[folder = "static"]
-struct Assets;
 
 #[derive(Deserialize)]
 pub struct CommonQuery {
@@ -147,19 +143,33 @@ async fn static_or_404(uri: axum::http::Uri) -> Response {
         return not_found();
     }
     match Assets::get(path) {
-        Some(f) => {
-            let mime = mime_guess::from_path(path).first_or_octet_stream();
-            (
-                [(
-                    header::CONTENT_TYPE,
-                    HeaderValue::from_str(mime.as_ref())
-                        .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
-                )],
-                f.data.into_owned(),
-            )
-                .into_response()
-        }
+        Some(f) => (
+            [(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static(content_type(path)),
+            )],
+            f.data.into_owned(),
+        )
+            .into_response(),
         None => not_found(),
+    }
+}
+
+fn content_type(path: &str) -> &'static str {
+    match path.rsplit('.').next() {
+        Some("css") => "text/css; charset=utf-8",
+        Some("js") => "text/javascript; charset=utf-8",
+        Some("json") => "application/json",
+        Some("png") => "image/png",
+        Some("svg") => "image/svg+xml",
+        Some("txt") => "text/plain; charset=utf-8",
+        Some("html") => "text/html; charset=utf-8",
+        Some("woff") => "font/woff",
+        Some("woff2") => "font/woff2",
+        Some("ttf") => "font/ttf",
+        Some("eot") => "application/vnd.ms-fontobject",
+        Some("ico") => "image/x-icon",
+        _ => "application/octet-stream",
     }
 }
 

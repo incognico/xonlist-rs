@@ -35,6 +35,14 @@ CREATE TABLE IF NOT EXISTS activity (
 );
 "#;
 
+fn utc_hour() -> usize {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    (secs / 3600 % 24) as usize
+}
+
 pub struct ActivityDb {
     conn: Connection,
 }
@@ -64,7 +72,7 @@ impl ActivityDb {
     }
 
     pub fn record(&self, snap: &Snapshot) -> anyhow::Result<()> {
-        let hour = chrono::Timelike::hour(&chrono::Utc::now()) as usize;
+        let hour = utc_hour();
         let col = hour.to_string();
         let sql = format!(
             r#"INSERT INTO activity (server, name, "{col}") VALUES (?1, ?2, 1)

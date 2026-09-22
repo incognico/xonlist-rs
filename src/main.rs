@@ -1,4 +1,5 @@
 mod activity;
+mod assets;
 mod config;
 mod geo;
 mod heatmap;
@@ -14,29 +15,34 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 
-use clap::Parser;
 use tokio::net::{TcpListener, UnixListener};
 use tracing::info;
+use tracing_subscriber::filter::{LevelFilter, Targets};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::activity::ActivityDb;
 use crate::config::Config;
 use crate::geo::Geo;
-use crate::model::{init_regex, parse_banned, Snapshot};
+use crate::model::{parse_banned, Snapshot};
 use crate::refresh::{load_heatmap, load_snapshot};
 use crate::state::AppState;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "xonlist=info,tower_http=info".into()),
+    let level = env_log_level();
+    tracing_subscriber::registry()
+        .with(
+            Targets::new()
+                .with_target("xonlist", level)
+                .with_target("tower_http", level)
+                .with_default(LevelFilter::WARN),
         )
+        .with(tracing_subscriber::fmt::layer())
         .init();
 
     let config = Config::parse();
     fs::create_dir_all(&config.data_dir)?;
-    init_regex();
 
     let http = reqwest::Client::builder()
         .user_agent("xonlist/0.1")
@@ -64,6 +70,16 @@ async fn main() -> anyhow::Result<()> {
         let listener = TcpListener::bind(config.listen).await?;
         axum::serve(listener, app).await?;
         Ok(())
+    }
+}
+
+fn env_log_level() -> LevelFilter {
+    match std::env::var("RUST_LOG").ok().as_deref() {
+        Some("error") | Some("xonlist=error") => LevelFilter::ERROR,
+        Some("warn") | Some("xonlist=warn") => LevelFilter::WARN,
+        Some("debug") | Some("xonlist=debug") => LevelFilter::DEBUG,
+        Some("trace") | Some("xonlist=trace") => LevelFilter::TRACE,
+        _ => LevelFilter::INFO,
     }
 }
 

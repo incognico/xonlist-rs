@@ -336,8 +336,7 @@ fn parse_qcstatus(raw: &str, _numplayers: i32) -> QcParsed {
     }
 
     // Perl: s/:F[0-9]+:\KT[^:]+:/  — drop the T<?> field after flags, keep :F<n>:
-    let re = FLAGS_T.get_or_init(|| regex::Regex::new(r"(:F[0-9]+:)T[^:]+:").unwrap());
-    qc = re.replace(&qc, "$1").into_owned();
+    qc = strip_flag_team_field(&qc);
 
     let parts: Vec<&str> = qc.split(':').collect();
     let mode = parts.first().copied().unwrap_or("?").to_uppercase();
@@ -636,11 +635,29 @@ pub fn trunc_with_title(s: &str, n: usize) -> (String, Option<String>) {
     }
 }
 
-use std::sync::OnceLock;
-static FLAGS_T: OnceLock<regex::Regex> = OnceLock::new();
-
-pub fn init_regex() {
-    FLAGS_T.get_or_init(|| regex::Regex::new(r"(:F[0-9]+:)T[^:]+:").unwrap());
+fn strip_flag_team_field(qc: &str) -> String {
+    let b = qc.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b':' && i + 3 < b.len() && b[i + 1] == b'F' {
+            let mut j = i + 2;
+            let digits_at = j;
+            while j < b.len() && b[j].is_ascii_digit() {
+                j += 1;
+            }
+            if j > digits_at && j + 1 < b.len() && b[j] == b':' && b[j + 1] == b'T' {
+                if let Some(rel) = b[j + 2..].iter().position(|c| *c == b':') {
+                    out.extend_from_slice(&b[i..=j]);
+                    i = j + 2 + rel + 1;
+                    continue;
+                }
+            }
+        }
+        out.push(b[i]);
+        i += 1;
+    }
+    String::from_utf8(out).unwrap_or_else(|_| qc.to_string())
 }
 
 #[cfg(test)]
@@ -657,7 +674,6 @@ mod tests {
 
     #[test]
     fn qc_ctf() {
-        init_regex();
         let q = parse_qcstatus("ctf:git:P56:S55:F7:MInstaGib::score!!:caps!!:5:7:14:4", 4);
         assert_eq!(q.mode, "CTF");
         assert_eq!(q.mode2, "INSTAGIB");
@@ -671,5 +687,14 @@ mod tests {
         assert_eq!(q.scoreinfo.team.pri.label, "caps");
         assert_eq!(q.scoreinfo.team.pri.score.get(&1).copied(), Some(7));
         assert_eq!(q.scoreinfo.team.pri.score.get(&2).copied(), Some(4));
+    }
+
+    #[test]
+    fn qc_drops_team_field_after_flags() {
+        let q = parse_qcstatus("dm:git:P0:S15:F0:Tfoo:MXonotic::score!!", 1);
+        assert_eq!(q.mode, "DM");
+        assert_eq!(q.mode2, "VANILLA");
+        assert_eq!(q.impure, 0);
+        assert_eq!(q.slots, 15);
     }
 }

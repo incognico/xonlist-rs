@@ -8,9 +8,15 @@ The paths below are for the live host of <https://xonotic.lifeisabug.com> (Debia
 
 ## What you need
 
-On the build machine, a Rust toolchain. Build on the same architecture as the server, or copy a release binary built for it.
+On the build machine, a Rust toolchain and the libraries the binary links against. `pkg-config` finds them. On Debian:
 
-On the server at runtime:
+```bash
+apt install pkg-config libssl-dev libsqlite3-dev
+```
+
+Build on the same architecture as the server, or copy a release binary built for it.
+
+On the server at runtime the binary links `libssl.so.3`, `libcrypto.so.3`, and `libsqlite3.so.0`. nginx already uses that OpenSSL, and the Perl app already uses that SQLite.
 
 - The binary `target/release/xonlist`.
 - A data directory the service user can write. The process creates `snapshot.json`, `checkupdate.txt`, `activity.db`, and `heatmap.png` there.
