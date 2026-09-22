@@ -178,6 +178,11 @@ td:last-child {
   padding-right: 0;
 }
 
+#main tr.details th:nth-child(3),
+#main tbody.players td:nth-child(3) {
+  padding-right: 15px;
+}
+
 #main .button,
 #main .button-primary,
 #main button {
