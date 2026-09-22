@@ -60,7 +60,7 @@ impl Config {
             listen: "127.0.0.1:8080".parse().unwrap(),
             socket: None,
             data_dir: PathBuf::from("data"),
-            geodb: PathBuf::from("/home/k/GeoLite2-City.mmdb"),
+            geodb: PathBuf::from("/usr/local/share/GeoIP2_k/GeoLite2-City.mmdb"),
             domain: "xonotic.lifeisabug.com".into(),
             title: "XonList - Xonotic Server List".into(),
             desc: "XonList - Gameserver list for Xonotic. Servers, players, scores & more - Find Xonotic servers to play on.".into(),

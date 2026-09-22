@@ -1,20 +1,22 @@
 [Unit]
 Description=Xonotic Server List
-After=network-online.target remote-fs.target nss-lookup.target
+After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=http
-Group=http
+User=www-data
+Group=www-data
 RuntimeDirectory=xonlist
-RuntimeDirectoryMode=0770
-WorkingDirectory=/srv/www/xonotic.lifeisabug.com
-ExecStart=/srv/www/xonotic.lifeisabug.com/xonlist --socket /run/xonlist/xonlist.socket --data-dir /srv/www/xonotic.lifeisabug.com/data --geodb /home/k/GeoLite2-City.mmdb
+RuntimeDirectoryMode=0750
+WorkingDirectory=/home/www/xonotic.lifeisabug.com
+ExecStart=/home/www/xonotic.lifeisabug.com/xonlist \
+  --socket /run/xonlist/xonlist.socket \
+  --data-dir /home/www/xonotic.lifeisabug.com/data \
+  --geodb /usr/local/share/GeoIP2_k/GeoLite2-City.mmdb \
+  --domain xonotic.lifeisabug.com
 Restart=on-failure
-RestartSec=5
-PrivateDevices=yes
-PrivateTmp=true
+RestartSec=3
 NoNewPrivileges=yes
 
 [Install]

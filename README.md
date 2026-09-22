@@ -1,53 +1,40 @@
 # xonlist
 
-Self-contained [Xonotic](https://www.xonotic.org/) gameserver list. Queries
-dpmaster instances over UDP, serves the HTML/JSON UI, tracks hourly activity and
-renders the heatmap — all from one binary. No qstat, Perl, wget or cron.
+Rust rewrite of [incognico/xonlist](https://github.com/incognico/xonlist). The live site is <https://xonotic.lifeisabug.com>.
 
-This is a Rust rewrite of [incognico/xonlist](https://github.com/incognico/xonlist)
-(https://xonotic.lifeisabug.com).
+One binary queries the master servers, serves the HTML and JSON UI, records hourly activity, and renders the heatmap. nginx proxies to its Unix socket. There is no qstat, Perl, wget, or cron job.
 
-Cached data is only refreshed when its TTL expires:
+It links the system `libssl` and `libsqlite3`. CSS, JavaScript, fonts, images, and HTML templates are compiled in, so those changes need a new build. Country flags need a GeoLite2 City database. That file is not in this repository; MaxMind does not allow redistribution.
 
-| Data | TTL |
+`/server/…` pages send `noindex`. The main page does not.
+
+| Data | Interval |
 | --- | --- |
 | Server list | 5 minutes |
 | Ban list (`checkupdate.txt`) | 24 hours |
-| Activity + heatmap | 30 minutes |
+| Activity and heatmap | 30 minutes |
 
 ## Build
 
 ```bash
+apt install pkg-config libssl-dev libsqlite3-dev
 cargo build --release
 ```
 
-The binary is `target/release/xonlist`. Static assets and HTML templates are compiled in. The only optional runtime file is a MaxMind GeoLite2 MMDB for country flags.
+The binary is `target/release/xonlist`. Release builds use `opt-level = "z"`, fat LTO, `panic = "abort"`, and `strip = true`.
+
+Deploy steps, the systemd unit, and nginx are in [INSTALL.md](INSTALL.md).
 
 ## Run
-
-TCP (development):
 
 ```bash
 ./target/release/xonlist \
   --listen 127.0.0.1:8080 \
   --data-dir ./data \
-  --geodb /path/to/GeoLite2-City.mmdb \
+  --geodb /usr/local/share/GeoIP2_k/GeoLite2-City.mmdb \
   --domain localhost:8080
 ```
 
-Unix socket (production, matches the bundled systemd unit):
+Open `http://127.0.0.1:8080/`. The first server-list query runs in the background.
 
-```bash
-./xonlist \
-  --socket /run/xonlist/xonlist.socket \
-  --data-dir /srv/www/xonotic.lifeisabug.com/data \
-  --geodb /home/k/GeoLite2-City.mmdb
-```
-
-Install `etc/systemd/system/xonlist.service` and place the binary at
-`/srv/www/xonotic.lifeisabug.com/xonlist`.
-
-## Config
-
-All flags also accept `XONLIST_*` environment variables (`XONLIST_SOCKET`,
-`XONLIST_DATA_DIR`, `XONLIST_GEODB`, `XONLIST_DOMAIN`, `XONLIST_SERVER_TTL`, …).
+Every flag also reads an `XONLIST_*` variable (`XONLIST_LISTEN`, `XONLIST_DATA_DIR`, `XONLIST_GEODB`, `XONLIST_DOMAIN`, `XONLIST_MASTERS`, …). Command-line values win. `--masters` is a comma-separated list of `host` or `host:port`. The default list is `master1.xonotic.org:42863`, `dpmaster.deathmask.net`, `dpmaster.tchr.no`, and `dpm.dpmaster.org:27777`. IPv4 is tried before IPv6.

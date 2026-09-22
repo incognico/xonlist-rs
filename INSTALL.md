@@ -4,7 +4,7 @@ xonlist is one binary. It queries the master servers, serves the HTML and JSON U
 
 CSS, JavaScript, fonts, images, and HTML templates are compiled into the binary. A change to those files needs a new build.
 
-The paths below are for the live host of <https://xonotic.lifeisabug.com> (Debian, nginx, user `www-data`, site tree `/home/www/xonotic.lifeisabug.com`). The unit shipped in `etc/systemd/system/xonlist.service` still points at `/srv/www` and `User=http`. Use the unit in this document on that host.
+The paths below are the live host of <https://xonotic.lifeisabug.com>: Debian, nginx, user `www-data`, site tree `/home/www/xonotic.lifeisabug.com`. The unit in `etc/systemd/system/xonlist.service` is the one that host runs.
 
 ## What you need
 
@@ -16,7 +16,7 @@ apt install pkg-config libssl-dev libsqlite3-dev
 
 Build on the same architecture as the server, or copy a release binary built for it.
 
-On the server at runtime the binary links `libssl.so.3`, `libcrypto.so.3`, and `libsqlite3.so.0`. nginx already uses that OpenSSL, and the Perl app already uses that SQLite.
+On the server at runtime the binary links `libssl.so.3`, `libcrypto.so.3`, and `libsqlite3.so.0`. nginx already uses that OpenSSL.
 
 - The binary `target/release/xonlist`.
 - A data directory the service user can write. The process creates `snapshot.json`, `checkupdate.txt`, `activity.db`, and `heatmap.png` there.
@@ -48,15 +48,7 @@ install -d -o www-data -g www-data -m 755 \
   /home/www/xonotic.lifeisabug.com/data
 ```
 
-To keep heatmap history, copy the Perl app's database before the first start:
-
-```bash
-install -o www-data -g www-data -m 644 \
-  /home/www/xonotic.lifeisabug.com/app/files/activity.db \
-  /home/www/xonotic.lifeisabug.com/data/activity.db
-```
-
-The table layout matches. An empty database is created if that file is absent.
+The live `data/activity.db` was copied from the old Perl tree at `app/files/activity.db`. The table layout matches. An empty database is created if that file is absent. The Perl tree is still on disk and is not used by this service.
 
 ## Try it on TCP first
 
@@ -74,35 +66,7 @@ Open `http://127.0.0.1:8080/`. The first server-list query runs in the backgroun
 
 ## systemd
 
-The Perl app and this binary both want the unit name `xonlist.service` and the socket `/run/xonlist/xonlist.socket`. Stop and disable the Perl unit before enabling this one.
-
-`/etc/systemd/system/xonlist.service`:
-
-```ini
-[Unit]
-Description=Xonotic Server List
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=www-data
-Group=www-data
-RuntimeDirectory=xonlist
-RuntimeDirectoryMode=0750
-WorkingDirectory=/home/www/xonotic.lifeisabug.com
-ExecStart=/home/www/xonotic.lifeisabug.com/xonlist \
-  --socket /run/xonlist/xonlist.socket \
-  --data-dir /home/www/xonotic.lifeisabug.com/data \
-  --geodb /usr/local/share/GeoIP2_k/GeoLite2-City.mmdb \
-  --domain xonotic.lifeisabug.com
-Restart=on-failure
-RestartSec=3
-NoNewPrivileges=yes
-
-[Install]
-WantedBy=multi-user.target
-```
+Install `etc/systemd/system/xonlist.service` as `/etc/systemd/system/xonlist.service`. It listens on `/run/xonlist/xonlist.socket`.
 
 ```bash
 systemctl daemon-reload
@@ -113,9 +77,9 @@ The process removes a stale socket, binds `/run/xonlist/xonlist.socket`, and set
 
 ## nginx
 
-If the vhost already proxies the whole site to `unix:/run/xonlist/xonlist.socket`, leave that proxy in place. The binary serves `/`, `/server/…`, `/servers`, `/endpoint/json`, `/heatmap.png`, and the embedded files under `css/`, `js/`, `images/`, and `fonts/`.
+The live vhost proxies the whole site to `unix:/run/xonlist/xonlist.socket`, except `/.well-known/acme-challenge/`. The binary serves `/`, `/server/…`, `/servers`, `/endpoint/json`, `/heatmap.png`, and the embedded files under `css/`, `js/`, `images/`, and `fonts/`. `/server/…` responses include `X-Robots-Tag: noindex`.
 
-A `location` that still aliases the Perl tree `app/public/` would keep serving the old CSS and JavaScript. Point every location at the socket:
+Keep every content location on that socket:
 
 ```nginx
 location / {
@@ -152,4 +116,4 @@ The data directory is not part of the binary. Leave `data/` in place across upda
 
 Every flag has an `XONLIST_*` environment variable: `XONLIST_SOCKET`, `XONLIST_LISTEN`, `XONLIST_DATA_DIR`, `XONLIST_GEODB`, `XONLIST_DOMAIN`, `XONLIST_TITLE`, `XONLIST_DESC`, `XONLIST_MASTERS`, `XONLIST_BANS_URL`, `XONLIST_SERVER_TTL`, `XONLIST_BANS_TTL`, `XONLIST_ACTIVITY_INTERVAL`, `XONLIST_RETRIES`, `XONLIST_QUERY_TIMEOUT_MS`.
 
-`--socket` wins over `--listen`. `--domain` is the public site name used in links (`https://xonotic.lifeisabug.com`, or `http://localhost:8080` when the value starts with `localhost` or `127.`). TTL values are seconds. `--masters` is a comma-separated list of `host` or `host:port`.
+`--socket` wins over `--listen`. `--domain` is the public site name used in links (`https://xonotic.lifeisabug.com`, or `http://localhost:8080` when the value starts with `localhost` or `127.`). TTL values are seconds. `--masters` is a comma-separated list of `host` or `host:port`. The default masters are `master1.xonotic.org:42863`, `dpmaster.deathmask.net`, `dpmaster.tchr.no`, and `dpm.dpmaster.org:27777`. Each master is contacted over IPv4 before IPv6. `--geodb` defaults to `/usr/local/share/GeoIP2_k/GeoLite2-City.mmdb`.
