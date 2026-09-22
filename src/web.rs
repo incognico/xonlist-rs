@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use askama::Template;
 use axum::extract::{Path, Query, State};
-use axum::http::{header, HeaderValue, StatusCode};
+use axum::http::{header, HeaderName, HeaderValue, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
@@ -73,7 +73,8 @@ async fn server_page(
     Query(q): Query<CommonQuery>,
 ) -> Response {
     let snap = live_snapshot(&state);
-    let site = site_from(&state, &q);
+    let mut site = site_from(&state, &q);
+    site.noindex = true;
     let servers: Vec<ServerView> = snap
         .server
         .get(&server)
@@ -86,7 +87,12 @@ async fn server_page(
         servers: &servers,
         embed: true,
     };
-    render(tmpl)
+    let mut response = render(tmpl);
+    response.headers_mut().insert(
+        HeaderName::from_static("x-robots-tag"),
+        HeaderValue::from_static("noindex"),
+    );
+    response
 }
 
 async fn servers_page(State(state): State<AppState>, Query(q): Query<CommonQuery>) -> Response {

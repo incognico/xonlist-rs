@@ -1,3 +1,8 @@
 /target
+
+# Created when the app runs: server snapshot, ban list, activity db, heatmap.
 /data/*
 !/data/.gitkeep
+
+# MaxMind GeoLite2. Not licensed for redistribution.
+*.mmdb

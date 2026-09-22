@@ -14,6 +14,8 @@ pub struct SiteCtx {
     pub desc: String,
     pub asset_base: String,
     pub rjz: bool,
+    /// Server permalink pages are not for the search index.
+    pub noindex: bool,
 }
 
 impl SiteCtx {
@@ -24,6 +26,7 @@ impl SiteCtx {
             desc: cfg.desc.clone(),
             asset_base: cfg.asset_base(),
             rjz,
+            noindex: false,
         }
     }
 }
