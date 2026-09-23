@@ -21,6 +21,14 @@ pub struct Inner {
     pub heatmap: RwLock<Option<Vec<u8>>>,
     pub bans: RwLock<Vec<String>>,
     pub http: Client,
+    /// Rendered front pages for the current snapshot. The age token is filled per request.
+    pub pages: Mutex<PageCache>,
+}
+
+pub struct PageCache {
+    pub ptr: usize,
+    pub plain: String,
+    pub rjz: String,
 }
 
 impl std::ops::Deref for AppState {
@@ -49,6 +57,11 @@ impl AppState {
                 heatmap: RwLock::new(heatmap),
                 bans: RwLock::new(bans),
                 http,
+                pages: Mutex::new(PageCache {
+                    ptr: 0,
+                    plain: String::new(),
+                    rjz: String::new(),
+                }),
             }),
         }
     }

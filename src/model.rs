@@ -154,13 +154,6 @@ impl Snapshot {
     pub fn empty() -> Self {
         Self::default()
     }
-
-    pub fn with_lastupdate_now(&self) -> Self {
-        let mut s = self.clone();
-        let now = now_epoch();
-        s.info.lastupdate = now.saturating_sub(s.info.lastupdate_epoch);
-        s
-    }
 }
 
 pub fn now_epoch() -> u64 {

@@ -29,7 +29,8 @@ impl Geo {
         geo
     }
 
-    pub fn reload_if_changed(&self) {
+    /// Returns true when a new database was loaded.
+    pub fn reload_if_changed(&self) -> bool {
         let mtime = std::fs::metadata(&self.path)
             .and_then(|m| m.modified())
             .ok()
@@ -41,7 +42,7 @@ impl Geo {
                 warn!(path = %self.path.display(), "GeoIP database disappeared");
                 *g = None;
             }
-            return;
+            return false;
         };
         if self
             .loaded
@@ -49,7 +50,7 @@ impl Geo {
             .as_ref()
             .is_some_and(|l| l.mtime_secs == mtime)
         {
-            return;
+            return false;
         }
         match maxminddb::Reader::open_readfile(&self.path) {
             Ok(reader) => {
@@ -58,6 +59,7 @@ impl Geo {
                     mtime_secs: mtime,
                     reader,
                 });
+                true
             }
             Err(e) => {
                 warn!(
@@ -65,33 +67,36 @@ impl Geo {
                     path = %self.path.display(),
                     "GeoIP database not loaded; countries will be ??"
                 );
+                false
             }
         }
     }
 
-    pub fn country_for_address(&self, address: &str) -> String {
-        let Some(ip) = ip_from_address(address) else {
-            return "??".into();
-        };
+    pub fn apply(&self, snap: &mut Snapshot) {
         let g = self.loaded.read();
         let Some(loaded) = g.as_ref() else {
-            return "??".into();
+            for s in snap.server.values_mut() {
+                s.geo = "??".into();
+            }
+            return;
         };
-        match loaded.reader.lookup::<geoip2::City>(ip) {
-            Ok(Some(city)) => city
-                .country
-                .and_then(|c| c.iso_code)
-                .unwrap_or("??")
-                .to_string(),
-            _ => "??".into(),
+        for s in snap.server.values_mut() {
+            s.geo = country_from_reader(&loaded.reader, &s.address);
         }
     }
+}
 
-    pub fn apply(&self, snap: &mut Snapshot) {
-        self.reload_if_changed();
-        for s in snap.server.values_mut() {
-            s.geo = self.country_for_address(&s.address);
-        }
+fn country_from_reader(reader: &maxminddb::Reader<Vec<u8>>, address: &str) -> String {
+    let Some(ip) = ip_from_address(address) else {
+        return "??".into();
+    };
+    match reader.lookup::<geoip2::City>(ip) {
+        Ok(Some(city)) => city
+            .country
+            .and_then(|c| c.iso_code)
+            .unwrap_or("??")
+            .to_string(),
+        _ => "??".into(),
     }
 }
 

@@ -184,7 +184,6 @@ pub struct IndexTemplate<'a> {
     pub totalbots: i32,
     pub activeservers: i32,
     pub totalservers: i32,
-    pub lastupdate: u64,
     pub servers: &'a [ServerView],
     pub embed: bool,
 }

@@ -77,7 +77,8 @@ pub async fn refresh_servers(state: &AppState) -> anyhow::Result<()> {
     }
 
     let epoch = now_epoch();
-    let snap = assemble_snapshot(servers, epoch);
+    let mut snap = assemble_snapshot(servers, epoch);
+    state.geo.apply(&mut snap);
     info!(
         servers = snap.info.totalservers,
         players = snap.info.totalplayers,

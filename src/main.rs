@@ -51,7 +51,8 @@ async fn main() -> anyhow::Result<()> {
 
     let geo = Geo::open(config.geodb.clone());
     let activity = ActivityDb::open(&config.activity_path())?;
-    let snapshot = load_snapshot(&config).unwrap_or_else(Snapshot::empty);
+    let mut snapshot = load_snapshot(&config).unwrap_or_else(Snapshot::empty);
+    geo.apply(&mut snapshot);
     let heatmap = load_heatmap(&config);
     let bans = std::fs::read_to_string(config.bans_path())
         .map(|t| parse_banned(&t))

@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use askama::Template;
 use axum::extract::{Path, Query, State};
@@ -7,14 +8,17 @@ use axum::response::{Html, IntoResponse, Response};
 use axum::routing::get;
 use axum::Router;
 use serde::Deserialize;
+use serde::Serialize;
 use tower_http::trace::TraceLayer;
 
 use crate::assets::Assets;
-use crate::model::Snapshot;
+use crate::model::{now_epoch, Info, Snapshot};
 use crate::state::AppState;
 use crate::view::{
     views_from_snapshot, EmbedTemplate, IndexTemplate, RowsTemplate, ServerView, SiteCtx,
 };
+
+const AGE_TOKEN: &str = "@XONLIST_AGE@";
 
 #[derive(Deserialize)]
 pub struct CommonQuery {
@@ -36,31 +40,64 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
+#[derive(Serialize)]
+struct JsonOut<'a> {
+    info: Info,
+    server: &'a std::collections::BTreeMap<String, crate::model::Server>,
+}
+
 fn site_from(state: &AppState, q: &CommonQuery) -> SiteCtx {
     SiteCtx::from_config(&state.config, q.rjz.is_some())
 }
 
-fn live_snapshot(state: &AppState) -> Snapshot {
-    let mut snap = state.snapshot.read().with_lastupdate_now();
-    state.geo.apply(&mut snap);
-    snap
+fn current_snapshot(state: &AppState) -> (Arc<Snapshot>, u64) {
+    if state.geo.reload_if_changed() {
+        let mut guard = state.snapshot.write();
+        let mut snap = (**guard).clone();
+        state.geo.apply(&mut snap);
+        *guard = Arc::new(snap);
+    }
+    let snap = state.snapshot.read().clone();
+    let age = now_epoch().saturating_sub(snap.info.lastupdate_epoch);
+    (snap, age)
 }
 
-async fn index(State(state): State<AppState>, Query(q): Query<CommonQuery>) -> Response {
-    let snap = live_snapshot(&state);
-    let site = site_from(&state, &q);
-    let servers = views_from_snapshot(&snap);
+fn render_index(state: &AppState, snap: &Snapshot, rjz: bool) -> String {
+    let site = SiteCtx::from_config(&state.config, rjz);
+    let servers = views_from_snapshot(snap);
     let tmpl = IndexTemplate {
         site: &site,
         totalplayers: snap.info.totalplayers,
         totalbots: snap.info.totalbots,
         activeservers: snap.info.activeservers,
         totalservers: snap.info.totalservers,
-        lastupdate: snap.info.lastupdate,
         servers: &servers,
         embed: false,
     };
-    render(tmpl)
+    tmpl.render().unwrap_or_else(|e| {
+        tracing::error!(error = %e, "template render failed");
+        String::new()
+    })
+}
+
+async fn index(State(state): State<AppState>, Query(q): Query<CommonQuery>) -> Response {
+    let (snap, age) = current_snapshot(&state);
+    let ptr = Arc::as_ptr(&snap) as usize;
+    let rjz = q.rjz.is_some();
+    let cached = {
+        let mut pages = state.pages.lock();
+        if pages.ptr != ptr {
+            pages.plain = render_index(&state, &snap, false);
+            pages.rjz = render_index(&state, &snap, true);
+            pages.ptr = ptr;
+        }
+        if rjz {
+            pages.rjz.clone()
+        } else {
+            pages.plain.clone()
+        }
+    };
+    Html(cached.replacen(AGE_TOKEN, &age.to_string(), 1)).into_response()
 }
 
 async fn server_page(
@@ -68,7 +105,7 @@ async fn server_page(
     Path(server): Path<String>,
     Query(q): Query<CommonQuery>,
 ) -> Response {
-    let snap = live_snapshot(&state);
+    let (snap, _) = current_snapshot(&state);
     let mut site = site_from(&state, &q);
     site.noindex = true;
     let servers: Vec<ServerView> = snap
@@ -92,7 +129,7 @@ async fn server_page(
 }
 
 async fn servers_page(State(state): State<AppState>, Query(q): Query<CommonQuery>) -> Response {
-    let snap = live_snapshot(&state);
+    let (snap, _) = current_snapshot(&state);
     let site = site_from(&state, &q);
     let want: HashSet<&str> = q.s.iter().map(|s| s.as_str()).collect();
     let servers: Vec<ServerView> = snap
@@ -110,11 +147,17 @@ async fn servers_page(State(state): State<AppState>, Query(q): Query<CommonQuery
 }
 
 async fn json_endpoint(State(state): State<AppState>, Query(q): Query<CommonQuery>) -> Response {
-    let snap = live_snapshot(&state);
+    let (snap, age) = current_snapshot(&state);
+    let mut info = snap.info.clone();
+    info.lastupdate = age;
+    let body = JsonOut {
+        info,
+        server: &snap.server,
+    };
     let body = if q.pretty.is_some() {
-        serde_json::to_vec_pretty(&snap).unwrap_or_else(|_| b"{}".to_vec())
+        serde_json::to_vec_pretty(&body).unwrap_or_else(|_| b"{}".to_vec())
     } else {
-        serde_json::to_vec(&snap).unwrap_or_else(|_| b"{}".to_vec())
+        serde_json::to_vec(&body).unwrap_or_else(|_| b"{}".to_vec())
     };
     (
         [(
