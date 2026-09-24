@@ -37,4 +37,4 @@ Deploy steps, the systemd unit, and nginx are in [INSTALL.md](INSTALL.md).
 
 Open `http://127.0.0.1:8080/`. The first server-list query runs in the background.
 
-Every flag also reads an `XONLIST_*` variable (`XONLIST_LISTEN`, `XONLIST_DATA_DIR`, `XONLIST_GEODB`, `XONLIST_DOMAIN`, `XONLIST_MASTERS`, …). Command-line values win. `--masters` is a comma-separated list of `host` or `host:port`. The default list is `master1.xonotic.org:42863`, `dpmaster.deathmask.net`, `dpmaster.tchr.no`, and `dpm.dpmaster.org:27777`. IPv4 is tried before IPv6.
+Every flag also reads an `XONLIST_*` variable (`XONLIST_LISTEN`, `XONLIST_DATA_DIR`, `XONLIST_GEODB`, `XONLIST_DOMAIN`, `XONLIST_MASTERS`, …). Command-line values win. `--masters` is a comma-separated list of `host` or `host:port`. The default list is `master1.xonotic.org:42863`, `master2.xonotic.org:27950`, `master3.xonotic.org:27950`, `master4.xonotic.org:42863`, `dpmaster.deathmask.net`, `dpmaster.tchr.no`, `dpm.dpmaster.org:27777`, `dpm4.xonotic.xyz:27777`, and `dpm6.xonotic.xyz:27777`. IPv4 is tried before IPv6.

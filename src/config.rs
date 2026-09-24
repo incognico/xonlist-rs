@@ -65,7 +65,7 @@ impl Config {
             title: "XonList - Xonotic Server List".into(),
             desc: "XonList - Gameserver list for Xonotic. Servers, players, scores & more - Find Xonotic servers to play on.".into(),
             masters: split_masters(
-                "master1.xonotic.org:42863,dpmaster.deathmask.net,dpmaster.tchr.no,dpm.dpmaster.org:27777",
+                "master1.xonotic.org:42863,master2.xonotic.org:27950,master3.xonotic.org:27950,master4.xonotic.org:42863,dpmaster.deathmask.net,dpmaster.tchr.no,dpm.dpmaster.org:27777,dpm4.xonotic.xyz:27777,dpm6.xonotic.xyz:27777",
             ),
             bans_url: "https://gitlab.com/xonotic/xonotic/raw/master/misc/infrastructure/checkupdate.txt".into(),
             server_ttl: Duration::from_secs(300),
