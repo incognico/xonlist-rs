@@ -186,14 +186,23 @@ async fn static_or_404(uri: axum::http::Uri) -> Response {
         return not_found();
     }
     match Assets::get(path) {
-        Some(f) => (
-            [(
-                header::CONTENT_TYPE,
-                HeaderValue::from_static(content_type(path)),
-            )],
-            f.data.into_owned(),
-        )
-            .into_response(),
+        Some(f) => {
+            let mut response = (
+                [(
+                    header::CONTENT_TYPE,
+                    HeaderValue::from_static(content_type(path)),
+                )],
+                f.data.into_owned(),
+            )
+                .into_response();
+            if path.ends_with(".js") || path.ends_with(".css") {
+                response.headers_mut().insert(
+                    header::CACHE_CONTROL,
+                    HeaderValue::from_static("no-cache"),
+                );
+            }
+            response
+        }
         None => not_found(),
     }
 }
